@@ -6,9 +6,14 @@ Example:
 	
 	# echos the path to a changed .txt file in the ./some/text/files/ directory
 	# the -c parameter clears the output whenever the file is changed
-	
 	$ watch ./some/text/files/*.txt -c "echo [filepath]"
 
+	# use -o to redirect output
+	$ watch ./some/text/files/*.txt -c "echo [filepath]" -o test.txt
+	
+	# OR (note, this will only dump output when you kill the command)
+	$ watch ./some/text/files/*.txt -c "echo [filepath]" >> test.txt
+	
 Usage:
 
 	File Watcher - written by Corey Walsh
