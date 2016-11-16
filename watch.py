@@ -36,6 +36,7 @@ class ProgramOptions(object):
 		self.verbose = False
 		self.clear = False
 		self.bash_file = ''
+		self.globs = None
 
 		self.parse(args)
 
@@ -80,13 +81,23 @@ class ProgramOptions(object):
 		if '-env' in parsed_args:
 			self.bash_file = parsed_args['-env']
 
-		self.parseGlobs(args[:-1] )
+		self.globs = args[:-1]
+		self.parseGlobs(self.globs)
 		self.command = args[-1]
 
 	def parseGlobs(self, file_globs):
+		self.files = []
 		for file_glob in file_globs:
 			for file_name in glob2.glob(file_glob):
 				self.files.append(File(file_name))
+		self.signature = self.fileListSignature(file_globs)
+
+	def fileListSignature(self, file_globs):
+		fl = []
+		for file_glob in file_globs:
+			for file_name in glob2.glob(file_glob):
+				fl.append(file_name)
+		return hash(str(fl))
 
 	def printUsage(self):
 		print "File Watcher - written by Corey Walsh"
@@ -103,19 +114,39 @@ class ProgramOptions(object):
 		print "  [filename]"
 		print "  [filepath]"
 
+	def updateFileList(self):
+		if self.signature != self.fileListSignature(self.globs):
+			# if options.verbose:
+			print "Updated file list"
+			self.parseGlobs(self.globs)
+			self.status()
+
+	def status(self):
+		if self.verbose:
+			print "Watching files:"
+			for i in self.files:
+				print "  ", i.name
+			print "Polling every:", self.poll_interval, "ms"
+			print "Outputting to:", self.output
+		else:
+			print "Watching", len(self.files), \
+				  "files every", self.poll_interval, \
+				  "ms. Outputting stdout to", self.output
+			
 def main():
 	options = ProgramOptions(sys.argv[1:])
+	options.status()
 
-	if options.verbose:
-		print "Watching files:"
-		for i in options.files:
-			print "  ", i.name
-		print "Polling every:", options.poll_interval, "ms"
-		print "Outputting to:", options.output
-	else:
-		print "Watching", len(options.files), \
-			  "files every", options.poll_interval, \
-			  "ms. Outputting stdout to", options.output
+	# if options.verbose:
+	# 	print "Watching files:"
+	# 	for i in options.files:
+	# 		print "  ", i.name
+	# 	print "Polling every:", options.poll_interval, "ms"
+	# 	print "Outputting to:", options.output
+	# else:
+	# 	print "Watching", len(options.files), \
+	# 		  "files every", options.poll_interval, \
+	# 		  "ms. Outputting stdout to", options.output
 
 	if options.output == 'console':
 		_outFile = subprocess.PIPE
@@ -137,6 +168,8 @@ def main():
 	# poll all files after sleeping for the desired interval
 	while True:
 		time.sleep(options.poll_interval / 1000.0)
+
+		options.updateFileList()
 
 		# handle the case where the file is deleted
 		options.files = [f for f in options.files if f.exists()]
